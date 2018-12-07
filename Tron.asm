@@ -19,8 +19,10 @@ main PROC
 
     call        ClrScr
 
-    mov     eax,    cyan + (gray * 16)
-    call    SetTextColor
+    call        Randomize
+
+    mov         eax,    cyan + (gray * 16)
+    call        SetTextColor
 
     mov         ecx,   23
     mov         playerX,     0
@@ -191,11 +193,11 @@ UpdatePlayer PROC
     cmp     eax, 1
     jne     safe
 
-    cmp     score, 500
+    cmp     score, 100
     jb      gameOverBit
-    exit
-    ;call    NewLevel
-    ret
+    
+    call    NewLevel
+    jmp     safe
 gameOverBit:
     call    GameOver
     exit
@@ -216,11 +218,160 @@ UpdatePlayer ENDP
 NewLevel PROC
     pushad
 
+    mov     score, 0
+    mov     playerX, 0
+    mov     playerY, 0
+    inc     level
     
+    mov     ecx, 2000
+    mov     edx, offset floor
+L1:
+    mov     eax, edx
+    mov     [eax + ecx], BYTE PTR 0
+
+loop    L1
+
+    mov     ecx, 79
+L2:
+    mov     eax, edx
+    mov     [eax + ecx], BYTE PTR 1
+
+loop L2
+
+    mov     ecx, 79
+L3:
+    mov     eax, edx
+    add     eax, 2000
+    sub     eax, ecx
+    mov     [eax], BYTE PTR 1
+
+loop L3
+
+    mov     ecx, 1
+L4:
+    mov     eax, 0
+    push    eax
+    push    ecx
+    mov     eax, 1
+    push    eax
+    call    SetLocationAt
+    mov     eax, 79
+    push    eax
+    push    ecx
+    mov     eax, 1
+    push    eax
+    call    SetLocationAt
+    
+    inc     ecx
+    cmp     ecx, 24
+jbe     L4
+
+    mov     ecx, level
+obstacles:
+    ; Generate X Position
+    mov     eax, 78
+    call    RandomRange
+    inc     eax
+    push    eax
+
+    ; Generate Y Position
+    mov     eax, 23
+    call    RandomRange
+    inc     eax
+    push    eax
+
+    ; Generate Width
+    mov     eax, 10
+    call    RandomRange
+    inc     eax
+    push    eax
+
+    ; Generate Height
+    mov     eax, 10
+    call    RandomRange
+    inc     eax
+    push    eax
+
+    call    GenerateBlock
+loop obstacles
+
+
+    call        ClrScr
+
+    mov     eax,    cyan + (gray * 16)
+    call    SetTextColor
+
+    mov         ecx,   23
+    mov         playerX,     0
+    mov         playerY,     0
+
+    topY:
+        movzx       eax,    playerX
+        push        eax
+        movzx       eax,    playerY
+        push        eax
+        call        GetLocationAt
+
+        cmp         eax, 1
+        jne         cleared
+        mov         dl, playerX
+        mov         dh, playerY
+        call        Gotoxy
+        mov         al, 219
+        call        WriteChar
+        jmp         overStuff
+    cleared:
+        mov         eax, yellow + (gray * 16)
+        call        SetTextColor
+        mov         dl, playerX
+        mov         dh, playerY
+        call        Gotoxy
+        mov         al, 219
+        call        WriteChar
+        mov         eax, cyan + (gray * 16)
+        call        SetTextColor
+    overStuff:
+        inc         playerX
+
+        cmp         playerX, 80
+        jb          allGood
+        mov         playerX, 0
+        inc         playerY
+    allGood:
+        cmp         playerY, 25
+        jb          topY
+        
+    mov         playerX, 10
+    mov         playerY, 10
+
 
     popad
     ret
 NewLevel ENDP
+
+GenerateBlock PROC
+    push        ebp
+    mov         ebx, esp
+    pushad
+
+    _xPos        equ [ebp + 20]
+    _yPos        equ [ebp + 16]
+    _width       equ [ebp + 12]
+    _height      equ [ebp + 8]
+
+    mov     ecx, _height
+    mov     ebx, _yPos
+
+    hCheck:
+        mov ebx, _yPos
+        add ebx, ecx
+        
+
+
+    popad
+    ret 20
+
+GenerateBlock ENDP
 
 GameOver PROC
 
