@@ -1,4 +1,6 @@
 INCLUDE Irvine32.inc
+INCLUDE Macros.inc
+INCLUDE VirtualKeys.inc
 
 .data
 playerX     BYTE    10
@@ -11,6 +13,10 @@ floor       BYTE    80 dup(1), 23 dup(1, 78 dup(0), 1), 80 dup(1)       ; 0 - Em
                                                                         ; 1 - Obstacle / Occupied
 gameOverS   BYTE "Game Over!", 0
 scoreS      BYTE "Score: ", 0
+
+tickSpeed   BYTE 100
+
+paused      BYTE 0
 
 
 .code
@@ -64,7 +70,7 @@ main PROC
         cmp         playerY, 25
         jb          topY
         
-    mov         playerX, 10
+    mov         playerX, 30
     mov         playerY, 10
 
     call        GameLoop
@@ -142,7 +148,7 @@ L1:
     call    Input
     call    UpdatePlayer
 
-    mov     eax, 100
+    movzx     eax, tickSpeed
     call    Delay
 
     jmp     L1
@@ -193,10 +199,16 @@ UpdatePlayer PROC
     cmp     eax, 1
     jne     safe
 
-    cmp     score, 100
+    cmp     score, 500
     jb      gameOverBit
     
     call    NewLevel
+
+    mov     eax, 100
+    call    Delay
+
+    mov     tickSpeed, 100
+
     jmp     safe
 gameOverBit:
     call    GameOver
@@ -210,6 +222,14 @@ safe:
     mov     al,     219
     call    WriteChar
     
+    cmp     score, 200
+    jb      outside
+    mov     tickSpeed, 50
+    cmp     score, 400
+    jb      outside
+    mov     tickSpeed, 25
+    outside:
+
     popad
 
     ret
@@ -234,7 +254,7 @@ loop    L1
     mov     ecx, 79
 L2:
     mov     eax, edx
-    mov     [eax + ecx], BYTE PTR 1
+    mov     BYTE PTR [eax + ecx], 1
 
 loop L2
 
@@ -243,7 +263,7 @@ L3:
     mov     eax, edx
     add     eax, 2000
     sub     eax, ecx
-    mov     [eax], BYTE PTR 1
+    mov     BYTE PTR [eax], 1
 
 loop L3
 
@@ -266,16 +286,17 @@ L4:
     cmp     ecx, 24
 jbe     L4
 
-    mov     ecx, level
+    movzx     ecx, level
+
 obstacles:
     ; Generate X Position
-    mov     eax, 78
+    mov     eax, 60
     call    RandomRange
     inc     eax
     push    eax
 
     ; Generate Y Position
-    mov     eax, 23
+    mov     eax, 20
     call    RandomRange
     inc     eax
     push    eax
@@ -292,6 +313,7 @@ obstacles:
     inc     eax
     push    eax
 
+    
     call    GenerateBlock
 loop obstacles
 
@@ -341,17 +363,18 @@ loop obstacles
         cmp         playerY, 25
         jb          topY
         
-    mov         playerX, 10
+    mov         playerX, 30
     mov         playerY, 10
-
 
     popad
     ret
 NewLevel ENDP
 
 GenerateBlock PROC
+    ; ret 16
+    ; DEBUG
     push        ebp
-    mov         ebx, esp
+    mov         ebp, esp
     pushad
 
     _xPos        equ [ebp + 20]
@@ -360,16 +383,32 @@ GenerateBlock PROC
     _height      equ [ebp + 8]
 
     mov     ecx, _height
-    mov     ebx, _yPos
+    topY:
+        mov     edx, _width
+        topX:
+            mov     eax, _xPos
+            add     eax, edx
+            push    eax
 
-    hCheck:
-        mov ebx, _yPos
-        add ebx, ecx
-        
+            mov     eax, _yPos
+            add     eax, ecx
+            push    eax
 
+            mov     eax, 1
+            push    eax
+
+            call    SetLocationAt
+
+            dec     edx
+            cmp     edx, 0
+            ja      topX
+        dec     ecx
+        cmp     ecx, 0
+        ja      topY
 
     popad
-    ret 20
+    pop     ebp
+    ret     16
 
 GenerateBlock ENDP
 
@@ -429,8 +468,16 @@ notA:
     mov     deltaY, 0
     jmp     doneInput
 notD:
-    ; Todo(Joshua): Pause Feature
-
+    cmp     dx, VK_SPACE
+    jne     doneInput
+    mov     paused, 1
+    pauseLoop:
+        mov     eax, 100
+        call    Delay
+        call    ReadKey
+        cmp     dx, VK_SPACE
+        jne     pauseLoop
+        mov     paused, 0
 doneInput:
     popad
 
